@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>StudyTracker Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --primary: #38bdf8;
+            --secondary: #818cf8;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --danger: #f43f5e;
+            --success: #10b981;
+            --border: #334155;
+            
+            /* Routine Category Colors from Image */
+            --major-bg: #b5d596;
+            --minor-bg: #a8d1e7;
+            --vac-bg: #c8a8e9;
+            --sec-bg: #f6c49a;
+            --aec-bg: #f8e385;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Navbar & Tabs */
+        .navbar { display: flex; justify-content: space-around; background: var(--surface); padding: 15px 0; border-bottom: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.1); z-index: 10;}
+        .tab-btn { background: none; border: none; color: var(--text-muted); font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.3s; padding: 10px 15px; border-radius: 8px; }
+        .tab-btn.active { color: var(--primary); background: rgba(56, 189, 248, 0.1); }
+        .tab-btn:hover { color: var(--text); }
+
+        /* Content Area */
+        .content { flex: 1; overflow-y: auto; padding: 20px; display: none; animation: fadeIn 0.3s ease-in-out; }
+        .content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .card { background: var(--surface); padding: 20px; border-radius: 16px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid var(--border); }
+        h2, h3 { color: var(--primary); margin-bottom: 15px; }
+
+        /* Inputs & Buttons */
+        input, select, textarea { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 15px; outline: none; transition: 0.2s; }
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(56,189,248,0.2); }
+        .btn { padding: 12px 20px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 15px; transition: 0.3s; color: white; display: inline-flex; align-items: center; justify-content: center; width: 100%; }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); }
+        .btn-danger { background: var(--danger); }
+        .btn-outline { background: transparent; border: 1px solid var(--text-muted); color: var(--text); }
+
+        /* Timer */
+        .timer-display { font-size: 56px; font-weight: 800; text-align: center; margin: 20px 0; color: var(--text); letter-spacing: 2px; text-shadow: 0 0 20px rgba(56, 189, 248, 0.4); }
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .log-item { background: var(--bg); padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--secondary); }
+        
+        /* Routine Matrix Grid */
+        .routine-wrapper { overflow-x: auto; background: var(--bg); border-radius: 10px; border: 1px solid var(--border); }
+        .routine-table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        .routine-table th, .routine-table td { border: 1px solid var(--border); padding: 10px; text-align: center; vertical-align: middle; position: relative; }
+        .routine-table th { background: var(--surface); color: var(--text); font-weight: 600; font-size: 14px; }
+        .routine-table td { height: 80px; width: 120px; }
+        
+        .slot-card { display: flex; flex-direction: column; justify-content: center; align-items: center; width: 100%; height: 100%; border-radius: 6px; padding: 5px; color: #000; font-weight: bold; font-size: 13px; position: relative; box-shadow: inset 0 0 5px rgba(0,0,0,0.1); }
+        .slot-card .del-btn { position: absolute; top: -5px; right: -5px; background: var(--danger); color: white; border: none; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; cursor: pointer; display: none; }
+        .routine-table td:hover .del-btn { display: block; }
+
+        .cat-major { background: var(--major-bg); }
+        .cat-minor { background: var(--minor-bg); }
+        .cat-vac { background: var(--vac-bg); }
+        .cat-sec { background: var(--sec-bg); }
+        .cat-aec { background: var(--aec-bg); }
+        .cat-none { background: #e2e8f0; }
+
+        /* File Reader */
+        .file-container { height: 70vh; width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); display: flex; justify-content: center; align-items: center; }
+        iframe { width: 100%; height: 100%; border: none; background: #fff; }
+        img.viewer-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .full-screen-btn { margin-bottom: 15px; background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation -->
+    <div class="navbar">
+        <button class="tab-btn active" onclick="switchTab('dashboard')">ড্যাশবোর্ড</button>
+        <button class="tab-btn" onclick="switchTab('routine')">রুটিন গ্রিড</button>
+        <button class="tab-btn" onclick="switchTab('reader')">ফাইল রিডার</button>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div id="dashboard" class="content active">
+        <div class="card">
+            <h2 style="text-align: center;">স্টাডি টাইমার</h2>
+            <div class="timer-display" id="display">00:00:00</div>
+            <div class="controls">
+                <button class="btn btn-primary" id="startBtn" onclick="startTimer()">Start Session</button>
+                <button class="btn btn-danger" id="stopBtn" onclick="stopTimer()" style="display:none;">Stop & Save</button>
+                <button class="btn btn-outline" onclick="resetTimer()">Reset</button>
+            </div>
+            <label>বিষয় (Pomodoro):</label>
+            <select id="subjectSelect"></select>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="newSubject" placeholder="নতুন বিষয় (যেমন: Physics)">
+                <button class="btn btn-primary" style="width: auto;" onclick="addSubject()">Add</button>
+            </div>
+            <input type="text" id="topicInput" placeholder="টপিক (ঐচ্ছিক)">
+        </div>
+        <div class="card">
+            <h3>আজকের লগ</h3>
+            <div id="logContainer"></div>
+        </div>
+    </div>
+
+    <!-- Routine Matrix Tab -->
+    <div id="routine" class="content">
+        <div class="card">
+            <h2>কাস্টম রুটিন বিল্ডার</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <select id="routineDay">
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                </select>
+                <!-- আপনি চাইলে এখানে নতুন টাইম স্লটও লিখতে পারেন -->
+                <input type="text" id="routineTime" placeholder="Time (e.g., 10:30 - 11:30)" list="defaultTimes">
+                <datalist id="defaultTimes">
+                    <option value="10:30 - 11:30">
+                    <option value="11:30 - 12:30">
+                    <option value="12:30 - 01:30">
+                    <option value="02:00 - 03:00">
+                    <option value="03:00 - 04:00">
+                    <option value="04:00 - 05:00">
+                </datalist>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px;">
+                <input type="text" id="routineSubject" placeholder="Class/Subject (e.g., Major: BR)">
+                <select id="routineCategory">
+                    <option value="none">Category (Select Color)</option>
+                    <option value="major">Major (Green)</option>
+                    <option value="minor">Minor (Blue)</option>
+                    <option value="vac">VAC (Purple)</option>
+                    <option value="sec">SEC (Orange)</option>
+                    <option value="aec">AEC (Yellow)</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="addGridRoutine()">স্লট অ্যাড করুন</button>
+        </div>
+
+        <div class="card">
+            <div class="routine-wrapper">
+                <table class="routine-table">
+                    <thead id="routineGridHead">
+                        <!-- JS দিয়ে ডাইনামিক রেন্ডার হবে -->
+                    </thead>
+                    <tbody id="routineGridBody">
+                        <!-- JS দিয়ে ডাইনামিক রেন্ডার হবে -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Reader Tab -->
+    <div id="reader" class="content">
+        <div class="card" id="readerCard">
+            <h2>পিডিএফ ও ইমেজ রিডার</h2>
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px;">
+                ফাইল সিলেক্ট করলে স্ক্রিন অটোমেটিক অন থাকবে (Wake Lock)।
+            </p>
+            <input type="file" id="fileUpload" accept="application/pdf, image/*" onchange="loadFile(event)">
+            <button class="btn btn-outline full-screen-btn" onclick="toggleFullScreenReader()">⛶ ফুলস্ক্রিন রিড মোড</button>
+            <div class="file-container" id="fileContainer" style="display: none;">
+                <div id="viewerContent" style="width: 100%; height: 100%;"></div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // --- Tab Switching ---
+    function switchTab(tabId) {
+        document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    // --- Timer & Dashboard Logic ---
+    let timerInterval;
+    const display = document.getElementById('display');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+
+    function updateDisplay() {
+        let startTime = localStorage.getItem('startTime');
+        if (startTime) {
+            let elapsed = Date.now() - parseInt(startTime);
+            let totalSeconds = Math.floor(elapsed / 1000);
+            let h = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+            let m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+            let s = String(totalSeconds % 60).padStart(2, '0');
+            display.textContent = `${h}:${m}:${s}`;
+        }
+    }
+
+    function startTimer() {
+        if (!localStorage.getItem('startTime')) localStorage.setItem('startTime', Date.now());
+        timerInterval = setInterval(updateDisplay, 1000);
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'flex';
+    }
+
+    function stopTimer() {
+        clearInterval(timerInterval);
+        let startTime = localStorage.getItem('startTime');
+        if (startTime) {
+            let elapsed = Date.now() - parseInt(startTime);
+            let totalMinutes = Math.floor(elapsed / 60000);
+            if(totalMinutes >= 0) saveLog(Math.max(1, totalMinutes));
+        }
+        localStorage.removeItem('startTime');
+        display.textContent = "00:00:00";
+        startBtn.style.display = 'flex';
+        stopBtn.style.display = 'none';
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        localStorage.removeItem('startTime');
+        display.textContent = "00:00:00";
+        startBtn.style.display = 'flex';
+        stopBtn.style.display = 'none';
+    }
+
+    // --- Subject & Log Management ---
+    const subjectSelect = document.getElementById('subjectSelect');
+    let subjects = JSON.parse(localStorage.getItem('subjects')) || ['Chemistry', 'Physics', 'Practice'];
+
+    function renderSubjects() {
+        subjectSelect.innerHTML = '';
+        subjects.forEach(sub => {
+            let opt = document.createElement('option');
+            opt.value = sub;
+            opt.textContent = sub;
+            subjectSelect.appendChild(opt);
+        });
+    }
+
+    function addSubject() {
+        let newSub = document.getElementById('newSubject').value.trim();
+        if (newSub && !subjects.includes(newSub)) {
+            subjects.push(newSub);
+            localStorage.setItem('subjects', JSON.stringify(subjects));
+            renderSubjects();
+            document.getElementById('newSubject').value = '';
+        }
+    }
+
+    function saveLog(minutes) {
+        let subject = subjectSelect.value;
+        let topic = document.getElementById('topicInput').value || 'N/A';
+        let logs = JSON.parse(localStorage.getItem('studyLogs')) || [];
+        logs.unshift({ date: new Date().toLocaleDateString(), subject, topic, minutes });
+        localStorage.setItem('studyLogs', JSON.stringify(logs));
+        renderLogs();
+        document.getElementById('topicInput').value = '';
+    }
+
+    function renderLogs() {
+        const logContainer = document.getElementById('logContainer');
+        let logs = JSON.parse(localStorage.getItem('studyLogs')) || [];
+        logContainer.innerHTML = logs.length === 0 ? '<p style="color:var(--text-muted);">এখনও কোনো লগ নেই।</p>' : '';
+        logs.forEach(log => {
+            logContainer.innerHTML += `
+                <div class="log-item">
+                    <div><strong>${log.subject}</strong><br><small style="color:var(--text-muted)">${log.topic} | ${log.date}</small></div>
+                    <div style="font-weight:bold; color:var(--success)">${log.minutes} Min</div>
+                </div>`;
+        });
+    }
+
+    // --- Matrix Routine Logic ---
+    const daysArr = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const baseTimes = ["10:30 - 11:30", "11:30 - 12:30", "12:30 - 01:30", "02:00 - 03:00", "03:00 - 04:00", "04:00 - 05:00"];
+
+    function addGridRoutine() {
+        let day = document.getElementById('routineDay').value;
+        let time = document.getElementById('routineTime').value.trim();
+        let subject = document.getElementById('routineSubject').value.trim();
+        let category = document.getElementById('routineCategory').value;
+
+        if (!time || !subject) return alert("Time এবং Class/Subject ফিল্ড পূরণ করুন!");
+        
+        let routineGrid = JSON.parse(localStorage.getItem('routineGridData')) || [];
+        
+        // একই দিন ও সময়ে কিছু থাকলে রিপ্লেস হবে, নইলে অ্যাড হবে
+        let existingIndex = routineGrid.findIndex(r => r.day === day && r.time === time);
+        let newItem = { id: Date.now(), day, time, subject, category };
+        
+        if (existingIndex > -1) {
+            routineGrid[existingIndex] = newItem;
+        } else {
+            routineGrid.push(newItem);
+        }
+
+        localStorage.setItem('routineGridData', JSON.stringify(routineGrid));
+        document.getElementById('routineSubject').value = '';
+        renderGridRoutine();
+    }
+
+    function renderGridRoutine() {
+        let routineGrid = JSON.parse(localStorage.getItem('routineGridData')) || [];
+        
+        // সব ইউনিক টাইম স্লট বের করা (ডিফল্ট + ইউজার ইনপুট)
+        let allTimes = [...new Set([...baseTimes, ...routineGrid.map(r => r.time)])];
+        
+        const thead = document.getElementById('routineGridHead');
+        const tbody = document.getElementById('routineGridBody');
+        
+        // Header Render (Time \ Day)
+        let headHtml = `<tr><th>TIME \\ DAY</th>`;
+        daysArr.forEach(day => {
+            headHtml += `<th>${day.toUpperCase()}</th>`;
+        });
+        headHtml += `</tr>`;
+        thead.innerHTML = headHtml;
+
+        // Body Render
+        tbody.innerHTML = '';
+        allTimes.forEach(timeSlot => {
+            let rowHtml = `<tr><td><strong>${timeSlot}</strong></td>`;
+            
+            daysArr.forEach(day => {
+                let cellData = routineGrid.find(r => r.day === day && r.time === timeSlot);
+                if (cellData) {
+                    rowHtml += `
+                    <td>
+                        <div class="slot-card cat-${cellData.category}">
+                            ${cellData.subject}
+                            <button class="del-btn" onclick="deleteGridRoutine(${cellData.id})">×</button>
+                        </div>
+                    </td>`;
+                } else {
+                    rowHtml += `<td></td>`;
+                }
+            });
+            rowHtml += `</tr>`;
+            tbody.innerHTML += rowHtml;
+        });
+    }
+
+    function deleteGridRoutine(id) {
+        let routineGrid = JSON.parse(localStorage.getItem('routineGridData')) || [];
+        routineGrid = routineGrid.filter(item => item.id !== id);
+        localStorage.setItem('routineGridData', JSON.stringify(routineGrid));
+        renderGridRoutine();
+    }
+
+    // --- File Reader (PDF + Image) & Wake Lock ---
+    let wakeLock = null;
+    let fileUrl = null;
+
+    async function requestWakeLock() {
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock active');
+            }
+        } catch (err) {
+            console.log(`Wake Lock error: ${err.name}, ${err.message}`);
+        }
+    }
+
+    function loadFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        if (fileUrl) URL.revokeObjectURL(fileUrl);
+        fileUrl = URL.createObjectURL(file);
+        
+        const viewerContent = document.getElementById('viewerContent');
+        const fileContainer = document.getElementById('fileContainer');
+
+        if (file.type === "application/pdf") {
+            viewerContent.innerHTML = `<iframe src="${fileUrl}#toolbar=0&navpanes=0&scrollbar=0"></iframe>`;
+        } else if (file.type.startsWith("image/")) {
+            viewerContent.innerHTML = `<img src="${fileUrl}" class="viewer-img">`;
+        } else {
+            alert("অনুগ্রহ করে একটি সঠিক PDF বা ইমেজ ফাইল নির্বাচন করুন।");
+            return;
+        }
+
+        fileContainer.style.display = 'block';
+        requestWakeLock();
+    }
+
+    function toggleFullScreenReader() {
+        const readerCard = document.getElementById('readerCard');
+        if (!document.fullscreenElement) {
+            readerCard.requestFullscreen().catch(err => alert(`Error: ${err.message}`));
+        } else {
+            document.exitFullscreen();
+        }
+    }
+
+    document.addEventListener('visibilitychange', async () => {
+        if (wakeLock !== null && document.visibilityState === 'visible') {
+            await requestWakeLock();
+        }
+    });
+
+    // --- Initialize Data ---
+    window.onload = function() {
+        renderSubjects();
+        renderLogs();
+        renderGridRoutine(); // রুটিন ম্যাট্রিক্স ইনিশিয়ালাইজ 
+        if (localStorage.getItem('startTime')) startTimer();
+    }
+</script>
+</body>
+</html>
