@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>My Daily Schedule</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gray: {
+                            850: '#1f2937',
+                            900: '#111827',
+                            950: '#030712',
+                        },
+                        primary: '#6366f1', // Indigo
+                        accent: '#10b981', // Emerald
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Toggle Switch Styles */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #6366f1;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #6366f1;
+        }
+        .toggle-checkbox {
+            right: 0;
+            z-index: 1;
+            border-color: #e5e7eb;
+            transition: all 0.3s;
+        }
+        .toggle-label {
+            width: 3rem;
+            height: 1.5rem;
+            background-color: #4b5563;
+            border-radius: 9999px;
+            transition: all 0.3s;
+        }
+        .toggle-circle {
+            width: 1.25rem;
+            height: 1.25rem;
+            background-color: white;
+            border-radius: 50%;
+            top: 0.125rem;
+            left: 0.125rem;
+            transition: all 0.3s;
+        }
+        .toggle-checkbox:checked ~ .toggle-circle {
+            transform: translateX(1.5rem);
+        }
+        
+        /* Prevent pull-to-refresh on mobile */
+        body {
+            overscroll-behavior-y: contain;
+        }
+
+        /* Hide scrollbar for clean look */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-white font-sans antialiased h-screen flex flex-col overflow-hidden selection:bg-primary selection:text-white">
+
+    <!-- Initialization Screen (Required to unlock Audio/Vibrate policies in browsers) -->
+    <div id="init-screen" class="absolute inset-0 z-50 bg-gray-950 flex flex-col items-center justify-center p-6 text-center">
+        <h1 class="text-3xl font-bold mb-4 text-primary">My Schedule</h1>
+        <p class="text-gray-400 mb-8">Keep track of your Namaz, University, and Study routines with smart alerts.</p>
+        <button id="start-app-btn" class="bg-primary hover:bg-indigo-500 text-white font-semibold py-4 px-8 rounded-full shadow-lg shadow-primary/30 transition-all transform active:scale-95 text-lg">
+            Launch Application
+        </button>
+    </div>
+
+    <!-- App Header -->
+    <header class="pt-6 pb-2 px-4 bg-gray-900 shadow-md z-10 flex-shrink-0">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-2xl font-bold tracking-tight">Routine</h1>
+            <div id="current-time-display" class="text-primary font-mono text-xl font-semibold">00:00</div>
+        </div>
+        
+        <!-- Tabs -->
+        <nav class="flex space-x-2 overflow-x-auto pb-2 -mx-2 px-2 no-scrollbar" id="tabs-container">
+            <button data-tab="daily" class="tab-btn active px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-primary text-white shadow-sm transition-colors">Daily & Namaz</button>
+            <button data-tab="university" class="tab-btn px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors">University</button>
+            <button data-tab="study" class="tab-btn px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors">Self Study</button>
+        </nav>
+    </header>
+
+    <!-- Schedule List Area -->
+    <main class="flex-1 overflow-y-auto p-4 space-y-4 pb-24 relative" id="schedule-list">
+        <!-- JS will populate items here -->
+    </main>
+
+    <!-- Floating Action Button -->
+    <button id="fab-add" class="fixed bottom-6 right-6 w-14 h-14 bg-accent hover:bg-emerald-400 text-white rounded-full shadow-xl shadow-accent/20 flex items-center justify-center text-3xl font-light z-20 transition-transform active:scale-90">
+        +
+    </button>
+
+    <!-- Add/Edit Modal -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden opacity-0 transition-opacity">
+        <div class="absolute bottom-0 left-0 right-0 bg-gray-900 rounded-t-3xl p-6 transform translate-y-full transition-transform duration-300 flex flex-col max-h-[90vh]" id="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold" id="modal-title">Add Schedule</h2>
+                <button id="modal-close" class="text-gray-400 hover:text-white p-2 text-xl">&times;</button>
+            </div>
+            
+            <div class="space-y-5 overflow-y-auto pb-8">
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Title</label>
+                    <input type="text" id="input-title" placeholder="e.g., Fajr Prayer" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Time</label>
+                    <input type="time" id="input-time" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Category</label>
+                    <select id="input-category" class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none transition-colors">
+                        <option value="daily">Daily & Namaz</option>
+                        <option value="university">University Routine</option>
+                        <option value="study">Self Study</option>
+                    </select>
+                </div>
+
+                <div class="bg-gray-850 rounded-xl p-4 space-y-4 border border-gray-800">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xl">🔊</span>
+                            <span class="font-medium">Sound (Beep)</span>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="input-sound" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer opacity-0"/>
+                            <label for="input-sound" class="toggle-label block overflow-hidden cursor-pointer"></label>
+                            <div class="toggle-circle absolute pointer-events-none shadow-sm"></div>
+                        </div>
+                    </div>
+                    <div class="w-full h-[1px] bg-gray-700"></div>
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-xl">📳</span>
+                            <span class="font-medium">Vibration</span>
+                        </div>
+                        <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                            <input type="checkbox" id="input-vibrate" checked class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer opacity-0"/>
+                            <label for="input-vibrate" class="toggle-label block overflow-hidden cursor-pointer"></label>
+                            <div class="toggle-circle absolute pointer-events-none shadow-sm"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="save-btn" class="w-full bg-primary hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg transition-colors mt-4">
+                    Save Schedule
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Alarm Overlay -->
+    <div id="active-alarm-screen" class="fixed inset-0 bg-primary/95 backdrop-blur-md z-50 hidden flex-col items-center justify-center p-6 text-center shadow-2xl">
+        <div class="animate-pulse mb-6">
+            <div class="w-32 h-32 bg-white/20 rounded-full flex items-center justify-center">
+                <span class="text-6xl">⏰</span>
+            </div>
+        </div>
+        <h2 id="alarm-time-display" class="text-5xl font-mono font-bold text-white mb-2 shadow-sm">00:00</h2>
+        <h3 id="alarm-title-display" class="text-3xl font-semibold text-indigo-100 mb-12 shadow-sm">Alarm Title</h3>
+        
+        <button id="stop-alarm-btn" class="bg-white text-primary font-bold text-xl py-5 px-12 rounded-full shadow-2xl hover:scale-105 transition-transform">
+            STOP ALARM
+        </button>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // --- Data & State ---
+        const defaultData = [
+            // Daily & Namaz
+            { id: '1', title: 'Wake Up Alarm', time: '04:30', category: 'daily', sound: true, vibrate: true },
+            { id: '2', title: 'Fajr', time: '04:50', category: 'daily', sound: true, vibrate: true },
+            { id: '3', title: 'Dhuhr', time: '12:30', category: 'daily', sound: true, vibrate: true },
+            { id: '4', title: 'Asr', time: '15:45', category: 'daily', sound: true, vibrate: true },
+            { id: '5', title: 'Maghrib', time: '17:15', category: 'daily', sound: true, vibrate: true },
+            { id: '6', title: 'Isha', time: '18:45', category: 'daily', sound: true, vibrate: true },
+            { id: '7', title: 'Sleep', time: '22:30', category: 'daily', sound: false, vibrate: true },
+            // University
+            { id: '8', title: 'Chemistry Major', time: '09:00', category: 'university', sound: true, vibrate: true },
+            { id: '9', title: 'Physics Minor', time: '10:30', category: 'university', sound: true, vibrate: true },
+            { id: '10', title: 'Mathematics Minor', time: '11:30', category: 'university', sound: true, vibrate: true },
+            { id: '11', title: 'SEC Analytical Chem', time: '14:00', category: 'university', sound: true, vibrate: true },
+            // Study
+            { id: '12', title: 'Evening Study Block 1', time: '19:30', category: 'study', sound: false, vibrate: true },
+            { id: '13', title: 'Evening Study Block 2', time: '21:00', category: 'study', sound: false, vibrate: true },
+        ];
+
+        let schedules = [];
+        let currentTab = 'daily';
+        let audioContext = null;
+        let alarmInterval = null;
+        let currentEditingId = null;
+        
+        // Prevent alarms from repeatedly firing in the same minute
+        let lastTriggeredRecord = null; 
+
+        // --- DOM Elements ---
+        const initScreen = document.getElementById('init-screen');
+        const startAppBtn = document.getElementById('start-app-btn');
+        const currentTimeDisplay = document.getElementById('current-time-display');
+        const scheduleList = document.getElementById('schedule-list');
+        const tabs = document.querySelectorAll('.tab-btn');
+        
+        const fabAdd = document.getElementById('fab-add');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content');
+        const modalClose = document.getElementById('modal-close');
+        
+        const inputTitle = document.getElementById('input-title');
+        const inputTime = document.getElementById('input-time');
+        const inputCategory = document.getElementById('input-category');
+        const inputSound = document.getElementById('input-sound');
+        const inputVibrate = document.getElementById('input-vibrate');
+        const saveBtn = document.getElementById('save-btn');
+        const modalTitle = document.getElementById('modal-title');
+        
+        const activeAlarmScreen = document.getElementById('active-alarm-screen');
+        const alarmTimeDisplay = document.getElementById('alarm-time-display');
+        const alarmTitleDisplay = document.getElementById('alarm-title-display');
+        const stopAlarmBtn = document.getElementById('stop-alarm-btn');
+
+        // --- Initialization ---
+        function initApp() {
+            // Load data from local storage or set defaults
+            const savedData = localStorage.getItem('schedulesApp');
+            if (savedData) {
+                schedules = JSON.parse(savedData);
+            } else {
+                schedules = [...defaultData];
+                saveData();
+            }
+
+            renderSchedules();
+            startClock();
+
+            // Set up event listeners
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            });
+
+            fabAdd.addEventListener('click', () => openModal());
+            modalClose.addEventListener('click', closeModal);
+            saveBtn.addEventListener('click', saveSchedule);
+            stopAlarmBtn.addEventListener('click', stopAlarm);
+
+            // Close modal when clicking outside
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) closeModal();
+            });
+
+            startAppBtn.addEventListener('click', () => {
+                // Initialize Audio Context on user interaction to bypass autoplay blocks
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                initScreen.classList.add('hidden');
+            });
+        }
+
+        // --- Core Functions ---
+        function saveData() {
+            localStorage.setItem('schedulesApp', JSON.stringify(schedules));
+        }
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            tabs.forEach(tab => {
+                if (tab.dataset.tab === tabId) {
+                    tab.classList.remove('bg-gray-800', 'text-gray-300');
+                    tab.classList.add('bg-primary', 'text-white');
+                } else {
+                    tab.classList.add('bg-gray-800', 'text-gray-300');
+                    tab.classList.remove('bg-primary', 'text-white');
+                }
+            });
+            renderSchedules();
+        }
+
+        function renderSchedules() {
+            scheduleList.innerHTML = '';
+            
+            // Filter and sort by time
+            const filtered = schedules
+                .filter(s => s.category === currentTab)
+                .sort((a, b) => a.time.localeCompare(b.time));
+
+            if (filtered.length === 0) {
+                scheduleList.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-48 text-gray-500">
+                        <span class="text-4xl mb-2">📋</span>
+                        <p>No schedules found in this tab.</p>
+                        <p class="text-sm mt-1">Tap + to add one.</p>
+                    </div>`;
+                return;
+            }
+
+            filtered.forEach(schedule => {
+                const card = document.createElement('div');
+                card.className = "bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-sm flex items-center justify-between mb-3 transition-transform active:scale-[0.98]";
+                
+                // Format time to 12h for better readability (optional, keeping 24h as requested via HTML time input, but display nicely)
+                const [h, m] = schedule.time.split(':');
+                const timeDate = new Date();
+                timeDate.setHours(h, m);
+                const displayTime = timeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                card.innerHTML = `
+                    <div class="flex flex-col flex-1" onclick="editSchedule('${schedule.id}')">
+                        <span class="text-2xl font-bold font-mono text-white tracking-tight">${displayTime}</span>
+                        <span class="text-gray-400 font-medium mt-1 truncate pr-2">${schedule.title}</span>
+                    </div>
+                    <div class="flex flex-col items-end space-y-2">
+                        <div class="flex items-center space-x-2 text-sm bg-gray-800 rounded-lg px-2 py-1">
+                            <span class="${schedule.sound ? 'text-accent' : 'text-gray-600'}">🔊</span>
+                            <span class="${schedule.vibrate ? 'text-accent' : 'text-gray-600'}">📳</span>
+                        </div>
+                        <button onclick="deleteSchedule('${schedule.id}', event)" class="text-red-400 hover:text-red-300 text-sm font-medium px-2 py-1 rounded bg-red-400/10">Delete</button>
+                    </div>
+                `;
+                scheduleList.appendChild(card);
+            });
+        }
+
+        // --- Clock & Alarm Logic ---
+        function startClock() {
+            setInterval(() => {
+                const now = new Date();
+                const currentH = now.getHours().toString().padStart(2, '0');
+                const currentM = now.getMinutes().toString().padStart(2, '0');
+                const currentTimeStr = `${currentH}:${currentM}`;
+                
+                // Update UI Clock
+                currentTimeDisplay.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                // Check alarms
+                checkAlarms(currentTimeStr, now.toDateString());
+
+            }, 1000);
+        }
+
+        function checkAlarms(timeStr, dateStr) {
+            // Prevent triggering if an alarm is currently ringing
+            if (!activeAlarmScreen.classList.contains('hidden')) return;
+
+            const triggerKey = `${dateStr}-${timeStr}`;
+
+            schedules.forEach(schedule => {
+                if (schedule.time === timeStr) {
+                    // Make sure we only trigger once per minute per schedule
+                    const scheduleKey = `${triggerKey}-${schedule.id}`;
+                    if (lastTriggeredRecord !== scheduleKey) {
+                        lastTriggeredRecord = scheduleKey;
+                        triggerAlarm(schedule);
+                    }
+                }
+            });
+        }
+
+        function triggerAlarm(schedule) {
+            alarmTimeDisplay.textContent = schedule.time;
+            alarmTitleDisplay.textContent = schedule.title;
+            
+            // Show Overlay
+            activeAlarmScreen.classList.remove('hidden');
+            activeAlarmScreen.classList.add('flex');
+            
+            // Handle Sound & Vibration loop
+            let beepStep = 0;
+            alarmInterval = setInterval(() => {
+                // Vibration Loop
+                if (schedule.vibrate && navigator.vibrate) {
+                    // Pattern: short pulse
+                    navigator.vibrate([300, 200]); 
+                }
+
+                // Audio Loop (Beep)
+                if (schedule.sound && audioContext) {
+                    if (audioContext.state === 'suspended') audioContext.resume();
+                    
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    
+                    osc.type = 'square';
+                    // Alternate frequency to make it sound like a classic digital alarm
+                    osc.frequency.setValueAtTime(beepStep % 2 === 0 ? 880 : 1046.50, audioContext.currentTime); 
+                    
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    
+                    osc.start();
+                    gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.2);
+                    osc.stop(audioContext.currentTime + 0.2);
+                    
+                    beepStep++;
+                }
+            }, 500); // Repeat every 500ms
+        }
+
+        function stopAlarm() {
+            clearInterval(alarmInterval);
+            if (navigator.vibrate) navigator.vibrate(0); // Stop vibration
+            
+            activeAlarmScreen.classList.add('hidden');
+            activeAlarmScreen.classList.remove('flex');
+        }
+
+        // --- Modal & Form Logic ---
+        function openModal(schedule = null) {
+            if (schedule) {
+                modalTitle.textContent = "Edit Schedule";
+                currentEditingId = schedule.id;
+                inputTitle.value = schedule.title;
+                inputTime.value = schedule.time;
+                inputCategory.value = schedule.category;
+                inputSound.checked = schedule.sound;
+                inputVibrate.checked = schedule.vibrate;
+            } else {
+                modalTitle.textContent = "Add Schedule";
+                currentEditingId = null;
+                inputTitle.value = "";
+                // Default to current time
+                const now = new Date();
+                inputTime.value = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                inputCategory.value = currentTab;
+                inputSound.checked = true;
+                inputVibrate.checked = true;
+            }
+
+            modalOverlay.classList.remove('hidden');
+            // Small delay to allow display:block to apply before transition
+            setTimeout(() => {
+                modalOverlay.classList.remove('opacity-0');
+                modalContent.classList.remove('translate-y-full');
+            }, 10);
+        }
+
+        function closeModal() {
+            modalOverlay.classList.add('opacity-0');
+            modalContent.classList.add('translate-y-full');
+            setTimeout(() => {
+                modalOverlay.classList.add('hidden');
+            }, 300); // match transition duration
+        }
+
+        function saveSchedule() {
+            const title = inputTitle.value.trim();
+            const time = inputTime.value;
+            const category = inputCategory.value;
+            const sound = inputSound.checked;
+            const vibrate = inputVibrate.checked;
+
+            if (!title || !time) {
+                // simple visual feedback instead of alert
+                inputTitle.classList.add('border-red-500');
+                setTimeout(() => inputTitle.classList.remove('border-red-500'), 2000);
+                return;
+            }
+
+            if (currentEditingId) {
+                // Update
+                const index = schedules.findIndex(s => s.id === currentEditingId);
+                if (index !== -1) {
+                    schedules[index] = { id: currentEditingId, title, time, category, sound, vibrate };
+                }
+            } else {
+                // Add
+                schedules.push({
+                    id: Date.now().toString(),
+                    title,
+                    time,
+                    category,
+                    sound,
+                    vibrate
+                });
+            }
+
+            saveData();
+            
+            // Switch to the category tab we just saved to
+            if (currentTab !== category) {
+                switchTab(category);
+            } else {
+                renderSchedules();
+            }
+            
+            closeModal();
+        }
+
+        function editSchedule(id) {
+            const schedule = schedules.find(s => s.id === id);
+            if (schedule) {
+                openModal(schedule);
+            }
+        }
+
+        window.deleteSchedule = function(id, event) {
+            event.stopPropagation(); // prevent opening edit modal
+            
+            schedules = schedules.filter(s => s.id !== id);
+            saveData();
+            renderSchedules();
+            
+            // Small haptic feedback for deletion
+            if (navigator.vibrate) navigator.vibrate(50);
+        };
+
+        // Bootstrap
+        initApp();
+    </script>
+</body>
+</html>
